@@ -1,0 +1,2 @@
+# tradr
+aura farming 
