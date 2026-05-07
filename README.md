@@ -1,2 +1,2 @@
-# trader
+# tradr
 aura farming all day
