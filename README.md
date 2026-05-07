@@ -1,2 +1,2 @@
 # tradr
-aura farming 
+aura farming all day
