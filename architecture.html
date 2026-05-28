@@ -1,0 +1,2212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tradr — Architecture RFC v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  :root {
+    --bg:        #0A0A0B;
+    --surface:   #111113;
+    --surface2:  #18181c;
+    --border:    #1E1E24;
+    --muted:     #2A2A32;
+    --text:      #F1F1F3;
+    --text-muted:#8888A0;
+    --blue:      #3B82F6;
+    --blue-dim:  #1d4ed840;
+    --green:     #22C55E;
+    --green-dim: #16a34a30;
+    --red:       #EF4444;
+    --red-dim:   #dc262630;
+    --amber:     #F59E0B;
+    --amber-dim: #d9770630;
+    --purple:    #A855F7;
+    --purple-dim:#9333ea30;
+    --nav-w:     260px;
+    --radius:    8px;
+    --radius-sm: 4px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    font-size: 15px;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── SIDEBAR ─────────────────────────────────────── */
+  nav {
+    width: var(--nav-w);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 0 40px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted) transparent;
+  }
+  .nav-logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .nav-logo .wordmark {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  .nav-logo .wordmark span { color: var(--blue); }
+  .nav-logo .badge {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: var(--blue-dim);
+    color: var(--blue);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .nav-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 12px 20px 6px;
+  }
+  nav a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 20px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 13px;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    line-height: 1.4;
+  }
+  nav a:hover { color: var(--text); background: var(--muted); border-left-color: var(--blue); }
+  nav a .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    min-width: 18px;
+  }
+
+  /* ── MAIN ────────────────────────────────────────── */
+  main {
+    flex: 1;
+    min-width: 0;
+    max-width: 960px;
+    padding: 48px 56px 100px;
+  }
+
+  /* ── HEADER ──────────────────────────────────────── */
+  .doc-header {
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .doc-header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .doc-header h1 span { color: var(--blue); }
+  .doc-header .sub { color: var(--text-muted); font-size: 16px; margin-bottom: 20px; }
+  .meta-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .meta-item { font-size: 13px; color: var(--text-muted); }
+  .meta-item strong { color: var(--text); font-weight: 500; }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--amber-dim);
+    color: var(--amber);
+    border: 1px solid #d9770640;
+  }
+  .status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+
+  /* ── EXECUTIVE SUMMARY ───────────────────────────── */
+  .exec-summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .exec-summary h2 { font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--blue); margin-bottom: 12px; }
+  .exec-summary p { color: var(--text-muted); margin-bottom: 10px; font-size: 14px; }
+  .exec-summary p:last-child { margin-bottom: 0; }
+  .exec-summary strong { color: var(--text); }
+  .exec-summary em { color: var(--purple); font-style: normal; }
+
+  /* ── SECTION ─────────────────────────────────────── */
+  .section { margin-bottom: 64px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--blue);
+    background: var(--blue-dim);
+    border: 1px solid #3b82f630;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+  }
+  h2.section-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 28px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  h3::before { content: ''; width: 3px; height: 15px; background: var(--blue); border-radius: 2px; flex-shrink: 0; }
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 20px 0 8px;
+  }
+  p { color: var(--text-muted); margin-bottom: 12px; }
+  p strong { color: var(--text); }
+  p em { color: var(--purple); font-style: normal; }
+  ul, ol { color: var(--text-muted); padding-left: 20px; margin-bottom: 14px; }
+  li { margin-bottom: 6px; font-size: 14px; }
+  li strong { color: var(--text); }
+
+  /* ── MERMAID ─────────────────────────────────────── */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin: 16px 0 24px;
+    overflow-x: auto;
+  }
+  .diagram-wrap .mermaid { display: flex; justify-content: center; }
+
+  /* ── CODE ────────────────────────────────────────── */
+  pre {
+    background: #0d1117 !important;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+  p code, li code {
+    background: var(--muted);
+    color: var(--purple);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+  }
+  .plain-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    white-space: pre;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    line-height: 1.7;
+  }
+
+  /* ── TABLES ──────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; margin: 14px 0 24px; border-radius: var(--radius); border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead tr { background: var(--surface2); }
+  thead th {
+    padding: 11px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  td { padding: 10px 14px; color: var(--text-muted); vertical-align: top; }
+  td strong { color: var(--text); font-weight: 500; }
+
+  /* ── SIGNAL BADGES ───────────────────────────────── */
+  .sig { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; }
+  .sig-buy    { background: var(--green-dim); color: var(--green); border: 1px solid #22c55e30; }
+  .sig-sell   { background: var(--red-dim);   color: var(--red);   border: 1px solid #ef444430; }
+  .sig-hold   { background: var(--amber-dim); color: var(--amber); border: 1px solid #f59e0b30; }
+  .sig-ai     { background: var(--purple-dim);color: var(--purple);border: 1px solid #a855f730; }
+  .sig-info   { background: var(--blue-dim);  color: var(--blue);  border: 1px solid #3b82f630; }
+
+  /* ── CALLOUTS ────────────────────────────────────── */
+  .callout {
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout-body { color: var(--text-muted); }
+  .callout-body strong { color: var(--text); display: block; margin-bottom: 2px; }
+  .callout.info    { background: var(--blue-dim);   border: 1px solid #3b82f625; }
+  .callout.warning { background: var(--amber-dim);  border: 1px solid #f59e0b25; }
+  .callout.success { background: var(--green-dim);  border: 1px solid #22c55e25; }
+  .callout.danger  { background: var(--red-dim);    border: 1px solid #ef444425; }
+
+  /* ── CHECKLIST ───────────────────────────────────── */
+  .checklist { list-style: none; padding-left: 0; }
+  .checklist li { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 14px; color: var(--text-muted); }
+  .checklist li::before { content: '✓'; color: var(--green); font-weight: 700; font-size: 13px; width: 18px; flex-shrink: 0; }
+  .checklist li.pending::before { content: '○'; color: var(--text-muted); }
+
+  /* ── ROADMAP TIMELINE ────────────────────────────── */
+  .phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 20px 0; }
+  .phase-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .phase-card .phase-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .phase-card.p1 .phase-label { color: var(--green); }
+  .phase-card.p2 .phase-label { color: var(--blue); }
+  .phase-card.p3 .phase-label { color: var(--purple); }
+  .phase-card h4 { font-size: 14px; color: var(--text); font-weight: 600; margin: 0 0 4px; text-transform: none; letter-spacing: 0; }
+  .phase-card .duration { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+  .phase-card ul { padding-left: 16px; margin: 0; }
+  .phase-card li { font-size: 13px; margin-bottom: 4px; }
+
+  /* ── COST CARDS ──────────────────────────────────── */
+  .cost-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+  .cost-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+  }
+  .cost-card .tier-name { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .cost-card .cost-price { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text); line-height: 1.2; }
+  .cost-card .cost-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ── PRICING TABLE ───────────────────────────────── */
+  .pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 20px 0; }
+  .pricing-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 18px;
+  }
+  .pricing-card.featured { border-color: var(--blue); background: var(--blue-dim); }
+  .pricing-card .plan-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .pricing-card .plan-price { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text); }
+  .pricing-card .plan-price span { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+  .pricing-card .plan-target { font-size: 12px; color: var(--text-muted); margin: 6px 0 12px; }
+  .pricing-card ul { padding-left: 14px; margin: 0; }
+  .pricing-card li { font-size: 12px; color: var(--text-muted); margin-bottom: 3px; }
+
+  /* ── ASCII WIREFRAME ─────────────────────────────── */
+  .wireframe {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.6;
+    margin: 16px 0;
+  }
+
+  /* ── COLOR SWATCHES ──────────────────────────────── */
+  .swatches { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+  .swatch { display: flex; align-items: center; gap: 8px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); }
+  .swatch-dot { width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0; border: 1px solid #ffffff10; }
+
+  /* ── FOOTER ──────────────────────────────────────── */
+  .doc-footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ── SCROLLBAR ───────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
+
+  /* ── HLJS OVERRIDE ───────────────────────────────── */
+  .hljs { background: #0d1117 !important; padding: 0 !important; }
+
+  @media (max-width: 900px) {
+    nav { display: none; }
+    main { padding: 24px 20px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SIDEBAR NAVIGATION
+════════════════════════════════════════════════════════════════ -->
+<nav>
+  <div class="nav-logo">
+    <div class="wordmark">tradr<span>.</span></div>
+    <div class="badge">RFC v1.0</div>
+  </div>
+
+  <div class="nav-section-label">Document</div>
+  <a href="#exec"><span class="num">00</span> Executive Summary</a>
+
+  <div class="nav-section-label">Architecture</div>
+  <a href="#s1"><span class="num">01</span> High-Level Architecture</a>
+  <a href="#s2"><span class="num">02</span> Frontend System</a>
+  <a href="#s3"><span class="num">03</span> Backend System</a>
+  <a href="#s4"><span class="num">04</span> AI System</a>
+  <a href="#s5"><span class="num">05</span> Database Design</a>
+  <a href="#s6"><span class="num">06</span> Realtime Architecture</a>
+  <a href="#s7"><span class="num">07</span> Security &amp; Compliance</a>
+  <a href="#s8"><span class="num">08</span> DevOps &amp; Deployment</a>
+  <a href="#s9"><span class="num">09</span> Scalability Planning</a>
+  <a href="#s10"><span class="num">10</span> MVP Roadmap</a>
+  <a href="#s11"><span class="num">11</span> Monorepo Structure</a>
+  <a href="#s12"><span class="num">12</span> API Design</a>
+  <a href="#s13"><span class="num">13</span> UI/UX Direction</a>
+  <a href="#s14"><span class="num">14</span> TradingView Integration</a>
+  <a href="#s15"><span class="num">15</span> Risks &amp; Challenges</a>
+
+  <div class="nav-section-label">Appendices</div>
+  <a href="#appendix-stack"><span class="num">A</span> Tech Stack Summary</a>
+  <a href="#appendix-costs"><span class="num">B</span> Infra Costs</a>
+  <a href="#appendix-prompts"><span class="num">C</span> AI Prompts</a>
+  <a href="#appendix-indexes"><span class="num">D</span> DB Indexes</a>
+  <a href="#appendix-cache"><span class="num">E</span> Caching Strategy</a>
+  <a href="#appendix-ws"><span class="num">F</span> WebSocket Schema</a>
+  <a href="#appendix-cicd"><span class="num">G</span> CI/CD Pipeline</a>
+  <a href="#appendix-monetization"><span class="num">H</span> Monetization</a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════════════════════════════ -->
+<main>
+
+  <!-- HEADER -->
+  <div class="doc-header">
+    <div class="status-badge">Draft</div>
+    <h1 style="margin-top:14px"><span>Tradr</span> — AI-Powered Investment Research Platform</h1>
+    <p class="sub">Engineering RFC &amp; System Architecture Document</p>
+    <div class="meta-row">
+      <div class="meta-item"><strong>Version</strong> 1.0</div>
+      <div class="meta-item"><strong>Date</strong> 2026-05-27</div>
+      <div class="meta-item"><strong>Authors</strong> Architecture Team</div>
+    </div>
+  </div>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <div class="exec-summary" id="exec">
+    <h2>Executive Summary</h2>
+    <p><strong>Tradr</strong> is a SaaS AI investment research platform combining institutional-grade charting (TradingView), AI-powered analysis (Claude/GPT-4o), real-time market data, and portfolio tracking — delivered with a Bloomberg Terminal Lite UX optimized for retail traders and self-directed investors.</p>
+    <p><strong>Core value proposition:</strong> AI explains <em>why</em> — not just what to buy/sell, but the full reasoning chain anchored in technicals, sentiment, and macro context.</p>
+    <p><strong>Target users:</strong> Self-directed retail traders, active investors, RIAs managing small books.</p>
+    <p><strong>Monetization:</strong> Freemium SaaS ($0 / $29 / $99 / $299/mo tiers).</p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 1 — HIGH-LEVEL ARCHITECTURE
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <span class="section-num">§ 01</span>
+      <h2 class="section-title">High-Level Architecture</h2>
+    </div>
+
+    <h3>1.1 System Overview</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph TB
+    subgraph CL["Client Layer"]
+        WEB["Next.js Web App"]
+        MOB["React Native Mobile (Phase 3)"]
+    end
+    subgraph EL["Edge Layer"]
+        CF["Cloudflare CDN / WAF"]
+        APIGW["API Gateway (Kong / AWS)"]
+    end
+    subgraph AL["Application Layer"]
+        NEXTAPI["Next.js API Routes (BFF)"]
+        CORE["NestJS Core API (REST + WS)"]
+        AIORCH["AI Orchestration (Python)"]
+        MARKET["Market Data Ingestion"]
+        NOTIFY["Notification Service"]
+    end
+    subgraph AI["AI Layer"]
+        CLAUDE["Claude Sonnet 4.6"]
+        GPT["OpenAI GPT-4o"]
+        EMBED["text-embedding-3-large"]
+    end
+    subgraph DL["Data Layer"]
+        PG[("PostgreSQL 16 + Replicas")]
+        REDIS[("Redis Cluster")]
+        VECTOR[("Pinecone Vector DB")]
+        S3["S3 Object Storage"]
+    end
+    subgraph QL["Queue Layer"]
+        BULL["BullMQ"]
+        KAFKA["Kafka (MSK)"]
+    end
+    subgraph MD["Market Data Sources"]
+        POLYGON["Polygon.io"]
+        FINNHUB["Finnhub"]
+        ALPACA["Alpaca Markets"]
+        TV["TradingView Widgets"]
+    end
+    WEB --> CF
+    MOB --> CF
+    CF --> APIGW
+    APIGW --> NEXTAPI
+    APIGW --> CORE
+    NEXTAPI --> CORE
+    CORE --> AIORCH
+    CORE --> MARKET
+    CORE --> NOTIFY
+    AIORCH --> CLAUDE
+    AIORCH --> GPT
+    AIORCH --> EMBED
+    AIORCH --> VECTOR
+    CORE --> PG
+    CORE --> REDIS
+    MARKET --> KAFKA
+    KAFKA --> CORE
+    BULL --> AIORCH
+    BULL --> MARKET
+    MARKET --> POLYGON
+    MARKET --> FINNHUB
+    MARKET --> ALPACA
+    WEB --> TV
+      </div>
+    </div>
+
+    <h3>1.2 Deployment Topology</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph LR
+    subgraph VE["Vercel Edge Network"]
+        FE["Next.js Frontend (Edge Runtime)"]
+    end
+    subgraph AWS["AWS us-east-1"]
+        subgraph EKS["EKS Cluster"]
+            API["Core API Pods (x3 min)"]
+            WORKER["Worker Pods (x2 min)"]
+            AIP["AI Service Pods (x2 min)"]
+        end
+        subgraph DATA["Data"]
+            RDS["Aurora PostgreSQL (Multi-AZ)"]
+            EC["ElastiCache Redis"]
+            MSK["Amazon MSK Kafka"]
+        end
+        ALB["Application Load Balancer"]
+    end
+    subgraph EXT["External AI"]
+        ANT["Anthropic API"]
+        OAI["OpenAI API"]
+    end
+    FE --> ALB
+    ALB --> API
+    API --> RDS
+    API --> EC
+    API --> MSK
+    API --> ANT
+    API --> OAI
+    WORKER --> MSK
+    AIP --> ANT
+    AIP --> OAI
+      </div>
+    </div>
+
+    <h3>1.3 Data Flow — AI Analysis Request</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant API
+    participant AIOrch
+    participant MarketSvc
+    participant DB
+    participant Cache
+    User->>Frontend: Opens dashboard / symbol TSLA
+    Frontend->>API: GET /api/v1/analysis/TSLA
+    API->>Cache: Check Redis (TTL 60s)
+    Cache-->>API: Cache miss
+    API->>MarketSvc: Fetch quote + indicators
+    MarketSvc-->>API: OHLCV + RSI + MACD + vol
+    API->>AIOrch: Generate analysis(symbol, indicators, news)
+    AIOrch->>AIOrch: Build prompt with context
+    AIOrch-->>API: Streaming recommendation (SSE)
+    API-->>Frontend: Stream SSE chunks
+    API->>Cache: Cache result (TTL 300s)
+    API->>DB: Persist recommendation record
+    Frontend-->>User: Render AI analysis panel
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 2 — FRONTEND
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <span class="section-num">§ 02</span>
+      <h2 class="section-title">Frontend System Design</h2>
+    </div>
+
+    <h3>2.1 Technology Choices</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Technology</th><th>Choice</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Framework</td><td><strong>Next.js 15 (App Router)</strong></td><td>RSC for data-heavy pages, streaming, SEO, API Routes as BFF</td></tr>
+          <tr><td>Language</td><td><strong>TypeScript 5.x</strong></td><td>Type safety across AI response schemas and financial data models</td></tr>
+          <tr><td>Styling</td><td><strong>Tailwind CSS v4</strong></td><td>Dark-mode-first, JIT, no runtime CSS-in-JS overhead</td></tr>
+          <tr><td>Components</td><td><strong>shadcn/ui + Radix</strong></td><td>Accessible primitives, fully owned, not a dep boundary</td></tr>
+          <tr><td>State (server)</td><td><strong>TanStack Query v5</strong></td><td>Caching, invalidation, optimistic updates, streaming queries</td></tr>
+          <tr><td>State (client)</td><td><strong>Zustand v5</strong></td><td>Minimal boilerplate, slice pattern, devtools</td></tr>
+          <tr><td>Charts</td><td><strong>TradingView + Lightweight Charts</strong></td><td>Official embeds for advanced, custom for portfolio charts</td></tr>
+          <tr><td>Auth</td><td><strong>Better Auth</strong></td><td>Next.js native, social + JWT, org support</td></tr>
+          <tr><td>Forms</td><td><strong>React Hook Form + Zod</strong></td><td>Zero re-render validation, schema sharing with backend</td></tr>
+          <tr><td>Realtime</td><td><strong>WebSocket + reconnecting-websocket</strong></td><td>Quote streaming, AI chat streaming</td></tr>
+          <tr><td>Testing</td><td><strong>Vitest + Playwright</strong></td><td>Unit/integration + E2E</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>2.2 Application Architecture</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph TD
+    subgraph NX["Next.js App Router"]
+        ROOT["Root Layout (Providers, Theme, Auth)"]
+        DASH["/dashboard — Layout"]
+        CHART["/chart/[symbol] — RSC"]
+        PORT["/portfolio"]
+        WATCH["/watchlist"]
+        CHAT["/assistant"]
+    end
+    subgraph CC["Client Components"]
+        TV_WIDGET["TradingViewWidget"]
+        AI_PANEL["AIRecommendationPanel"]
+        CHAT_UI["ChatInterface"]
+        TICKER["QuoteTicker"]
+        PC["PortfolioChart"]
+    end
+    subgraph STATE["State"]
+        ZS["Zustand — watchlist, layout, prefs"]
+        RQ["TanStack Query — server data cache"]
+        WS["WS Store — live quotes"]
+    end
+    ROOT --> DASH
+    DASH --> CHART
+    DASH --> PORT
+    DASH --> WATCH
+    DASH --> CHAT
+    CHART --> TV_WIDGET
+    CHART --> AI_PANEL
+    CHAT --> CHAT_UI
+    DASH --> TICKER
+    PORT --> PC
+    AI_PANEL --> RQ
+    TICKER --> WS
+    CHAT_UI --> ZS
+      </div>
+    </div>
+
+    <h3>2.3 State Management Pattern</h3>
+    <pre><code class="language-typescript">// stores/market.store.ts — Zustand slice pattern
+interface MarketState {
+  watchlist: string[];
+  activeSymbol: string;
+  quotes: Record&lt;string, Quote&gt;;
+  layout: 'single' | 'dual' | 'quad';
+  addToWatchlist: (symbol: string) =&gt; void;
+  setActiveSymbol: (symbol: string) =&gt; void;
+  updateQuote: (symbol: string, quote: Quote) =&gt; void;
+}
+
+// stores/ai.store.ts
+interface AIState {
+  chatHistory: ChatMessage[];
+  streamingMessage: string | null;
+  recommendations: Record&lt;string, AIRecommendation&gt;;
+  isAnalyzing: boolean;
+  appendStream: (chunk: string) =&gt; void;
+  finalizeMessage: (message: ChatMessage) =&gt; void;
+}</code></pre>
+
+    <h3>2.4 Responsive Strategy</h3>
+    <ul>
+      <li><strong>Desktop (≥1440px):</strong> Full multi-panel layout — sidebar + chart + AI panel + watchlist</li>
+      <li><strong>Tablet (768–1439px):</strong> Collapsible sidebar, stacked chart + AI panel</li>
+      <li><strong>Mobile (Phase 3):</strong> React Native app; web falls back to single-panel with bottom nav</li>
+    </ul>
+    <p>CSS approach: Tailwind container queries (<code>@container</code>) over media queries where possible to make panels self-responsive when layout shifts.</p>
+
+    <h3>2.5 Authentication Flow</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant BetterAuth
+    participant DB
+    User->>Frontend: Click "Sign In with Google"
+    Frontend->>BetterAuth: OAuth redirect
+    BetterAuth->>BetterAuth: Verify Google token
+    BetterAuth->>DB: Upsert user record
+    BetterAuth-->>Frontend: Session cookie (httpOnly, Secure, SameSite=Lax)
+    Frontend->>Frontend: Redirect to /dashboard
+    Note over Frontend: All API calls include session cookie
+    Frontend->>Frontend: Middleware checks session on protected routes
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 3 — BACKEND
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <span class="section-num">§ 03</span>
+      <h2 class="section-title">Backend System Design</h2>
+    </div>
+
+    <p>The backend follows a <strong>modular monolith → microservices</strong> migration path. Phase 1 ships a single NestJS application with clear module boundaries. Modules are extracted to independent services as load demands.</p>
+
+    <h3>3.1 Service Architecture</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph TB
+    subgraph NEST["NestJS Core API"]
+        AUTH_MOD["AuthModule"]
+        USER_MOD["UserModule"]
+        MARKET_MOD["MarketDataModule"]
+        PORT_MOD["PortfolioModule"]
+        WATCH_MOD["WatchlistModule"]
+        AI_MOD["AIModule"]
+        ALERT_MOD["AlertModule"]
+        WS_MOD["WebSocketGateway"]
+    end
+    subgraph INFRA["Infrastructure"]
+        PRISMA["Prisma ORM"]
+        REDIS_CLIENT["Redis (ioredis)"]
+        BULL_CLIENT["BullMQ"]
+        HTTP["Axios / fetch (Market APIs)"]
+    end
+    AUTH_MOD --> PRISMA
+    USER_MOD --> PRISMA
+    PORT_MOD --> PRISMA
+    WATCH_MOD --> PRISMA
+    AI_MOD --> BULL_CLIENT
+    MARKET_MOD --> REDIS_CLIENT
+    MARKET_MOD --> HTTP
+    WS_MOD --> REDIS_CLIENT
+    ALERT_MOD --> BULL_CLIENT
+      </div>
+    </div>
+
+    <h3>3.2 Background Job Architecture (BullMQ)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Queue</th><th>Jobs</th><th>Schedule</th></tr></thead>
+        <tbody>
+          <tr><td><code>market-data</code></td><td>fetchDailyCandles, fetchQuotes, syncWatchlistQuotes</td><td>Every 1min during market hours</td></tr>
+          <tr><td><code>ai-analysis</code></td><td>generateRecommendation, batchAnalyzeWatchlist</td><td>On-demand + nightly</td></tr>
+          <tr><td><code>alerts</code></td><td>evaluateAlerts, sendNotification</td><td>Every 30s</td></tr>
+          <tr><td><code>news</code></td><td>fetchNews, summarizeNews, embedNewsArticles</td><td>Every 15min</td></tr>
+          <tr><td><code>maintenance</code></td><td>cleanExpiredCache, archiveOldRecommendations</td><td>Daily</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.3 Market Data Ingestion Pipeline</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph LR
+    POLL["Polling Worker (1min)"] --> POLYGON["Polygon.io REST + WebSocket"]
+    POLYGON --> NORM["Normalize &amp; Validate"]
+    NORM --> REDIS_PUB["Redis Publish quote:SYMBOL"]
+    REDIS_PUB --> WS_GW["WebSocket Gateway → clients"]
+    REDIS_PUB --> ALERT_EVAL["Alert Evaluator"]
+    NORM --> KAFKA_PROD["Kafka Producer market.candles"]
+    KAFKA_PROD --> CANDLE_STORE["Candle Storage (PostgreSQL + TimescaleDB)"]
+      </div>
+    </div>
+
+    <h3>3.4 Market Data API Comparison</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Provider</th><th>Strengths</th><th>Weaknesses</th><th>Cost</th><th>Best For</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Polygon.io</strong></td><td>Excellent REST + WebSocket, options chain, full history</td><td>Paid for realtime</td><td>$29–$199/mo</td><td>Primary data source</td></tr>
+          <tr><td><strong>Finnhub</strong></td><td>Free tier generous, news/sentiment, crypto</td><td>Lower reliability, rate limits</td><td>Free–$50/mo</td><td>News + sentiment layer</td></tr>
+          <tr><td><strong>Alpaca Markets</strong></td><td>Free market data + brokerage integration</td><td>US equities only</td><td>Free</td><td>Paper trading</td></tr>
+          <tr><td><strong>TwelveData</strong></td><td>Good indicators API, WebSocket, Forex/Crypto</td><td>Can be slow under load</td><td>$0–$80/mo</td><td>Technical indicators</td></tr>
+          <tr><td><strong>Alpha Vantage</strong></td><td>Free, fundamentals</td><td>Very slow, strict rate limits</td><td>Free</td><td>Fundamentals only</td></tr>
+          <tr><td><strong>TradingView</strong></td><td>Best charts</td><td>Widgets only, no data export</td><td>Widget: Free</td><td>Charting UI only</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout success">
+      <span class="callout-icon">✓</span>
+      <div class="callout-body"><strong>Recommendation</strong> Polygon.io (primary) + Finnhub (news/sentiment) + Alpaca (paper trading). Budget ~$80/mo at MVP scale.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 4 — AI SYSTEM
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <span class="section-num">§ 04</span>
+      <h2 class="section-title">AI System Design</h2>
+    </div>
+
+    <h3>4.1 Model Selection Matrix</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Task</th><th>Model</th><th>Reason</th><th>Latency</th><th>Cost/1M tokens</th></tr></thead>
+        <tbody>
+          <tr><td>Deep symbol analysis</td><td><span class="sig sig-ai">Claude Sonnet 4.6</span></td><td>Best reasoning, structured JSON, 200K context</td><td>~3–8s</td><td>$3 / $15</td></tr>
+          <tr><td>Chat assistant</td><td><span class="sig sig-ai">Claude Sonnet 4.6</span></td><td>Streaming, nuanced, financial literacy</td><td>~1–3s TTFT</td><td>$3 / $15</td></tr>
+          <tr><td>Fast summaries</td><td><span class="sig sig-info">Claude Haiku 4.5</span></td><td>Sub-second, cheap, good enough for summaries</td><td>&lt;1s</td><td>$0.25 / $1.25</td></tr>
+          <tr><td>Structured outputs</td><td><span class="sig sig-info">GPT-4o</span></td><td>Native JSON mode, reliable schema adherence</td><td>~2–4s</td><td>$5 / $15</td></tr>
+          <tr><td>News embeddings</td><td><span class="sig sig-info">text-embedding-3-large</span></td><td>Best retrieval quality</td><td>~200ms</td><td>$0.13/1M</td></tr>
+          <tr><td>Batch analysis (nightly)</td><td><span class="sig sig-ai">Claude Opus 4.7</span></td><td>Highest quality, cost amortized overnight</td><td>~10–20s</td><td>$15 / $75</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>4.2 Prompt Engineering Pipeline</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph TD
+    INPUT["Symbol + Timeframe"] --> MCB["Market Context Builder"]
+    MCB --> PRICE["Price Data (OHLCV 90 days)"]
+    MCB --> IND["Technical Indicators (RSI, MACD, BB, ATR)"]
+    MCB --> NEWS["Recent News (RAG top-5)"]
+    MCB --> SECTOR["Sector Context (peer performance)"]
+    MCB --> MACRO["Macro Context (VIX, rates, SPY)"]
+    PRICE --> PB["Prompt Builder"]
+    IND --> PB
+    NEWS --> PB
+    SECTOR --> PB
+    MACRO --> PB
+    PB --> SP["System Prompt (Role + Output Schema)"]
+    SP --> LLM["Claude / GPT-4o"]
+    LLM --> PARSE["Response Parser (Zod validation)"]
+    PARSE --> STORE["Persist + Cache"]
+    PARSE --> STREAM["Stream to Client"]
+      </div>
+    </div>
+
+    <h3>4.3 AI Recommendation Output Schema</h3>
+    <pre><code class="language-typescript">interface AIRecommendation {
+  symbol: string;
+  timestamp: string;
+  signal: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL';
+  confidence: number;         // 0–100
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
+  timeHorizon: 'INTRADAY' | 'SWING' | 'POSITION' | 'LONG_TERM';
+  reasoning: string;          // Full chain-of-thought
+  summary: string;            // 2-3 sentence plain English
+  entryZone: { low: number; high: number };
+  targetPrice: number;
+  stopLoss: number;
+  riskRewardRatio: number;
+  positionSizeGuidance: string;
+  keyRisks: string[];
+  catalysts: string[];
+  technicalFactors: {
+    trend: string;
+    momentum: string;
+    volume: string;
+    volatility: string;
+  };
+  disclaimer: string;
+}</code></pre>
+
+    <h3>4.4 RAG Architecture for News</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph LR
+    NF["News Fetcher (Finnhub + RSS)"] --> CHUNK["Chunk &amp; Clean Articles"]
+    CHUNK --> EMBS["Embedding Service (text-embedding-3-large)"]
+    EMBS --> PC[("Pinecone — Namespace per symbol")]
+    QUERY["User Query / Symbol Analysis"] --> QE["Query Embedding"]
+    QE --> PC
+    PC --> TOPK["Top-5 Relevant News Chunks"]
+    TOPK --> CTX["Inject into LLM Context"]
+      </div>
+    </div>
+
+    <h3>4.5 Multi-Agent Workflow (Phase 2)</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph TD
+    ORC["Orchestrator Agent (Claude Opus)"] --> TECH["Technical Analyst (Claude Sonnet)"]
+    ORC --> NEWS_A["News Analyst (Claude Haiku)"]
+    ORC --> MACRO_A["Macro Analyst (Claude Sonnet)"]
+    ORC --> RISK_A["Risk Manager (GPT-4o structured)"]
+    TECH --> SYN["Synthesis Agent (Claude Opus)"]
+    NEWS_A --> SYN
+    MACRO_A --> SYN
+    RISK_A --> SYN
+    SYN --> FINAL["Final Recommendation + Confidence Score"]
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 5 — DATABASE
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <span class="section-num">§ 05</span>
+      <h2 class="section-title">Database Design</h2>
+    </div>
+
+    <h3>5.1 Entity Relationship Diagram</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+erDiagram
+    USERS {
+        uuid id PK
+        text email UK
+        text name
+        text tier
+        timestamptz created_at
+    }
+    SUBSCRIPTIONS {
+        uuid id PK
+        uuid user_id FK
+        text stripe_customer_id
+        text plan
+        text status
+    }
+    PORTFOLIOS {
+        uuid id PK
+        uuid user_id FK
+        text name
+        boolean is_paper
+    }
+    HOLDINGS {
+        uuid id PK
+        uuid portfolio_id FK
+        text symbol
+        decimal quantity
+        decimal avg_cost
+    }
+    TRANSACTIONS {
+        uuid id PK
+        uuid portfolio_id FK
+        text type
+        decimal quantity
+        decimal price
+    }
+    WATCHLISTS {
+        uuid id PK
+        uuid user_id FK
+        text name
+        boolean is_default
+    }
+    WATCHLIST_ITEMS {
+        uuid id PK
+        uuid watchlist_id FK
+        text symbol
+        integer position
+    }
+    AI_RECOMMENDATIONS {
+        uuid id PK
+        text symbol
+        text signal
+        smallint confidence
+        decimal target_price
+    }
+    CHAT_SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        text title
+    }
+    CHAT_MESSAGES {
+        uuid id PK
+        uuid session_id FK
+        text role
+        text content
+    }
+    ALERTS {
+        uuid id PK
+        uuid user_id FK
+        text symbol
+        text condition
+        decimal threshold
+    }
+    USERS ||--o{ SUBSCRIPTIONS : has
+    USERS ||--o{ PORTFOLIOS : owns
+    USERS ||--o{ WATCHLISTS : owns
+    USERS ||--o{ CHAT_SESSIONS : creates
+    USERS ||--o{ ALERTS : sets
+    PORTFOLIOS ||--o{ HOLDINGS : contains
+    PORTFOLIOS ||--o{ TRANSACTIONS : records
+    WATCHLISTS ||--o{ WATCHLIST_ITEMS : contains
+    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
+      </div>
+    </div>
+
+    <h3>5.2 Core PostgreSQL Schema</h3>
+    <pre><code class="language-sql">-- Users and Auth
+CREATE TABLE users (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       TEXT UNIQUE NOT NULL,
+  name        TEXT,
+  avatar_url  TEXT,
+  tier        TEXT NOT NULL DEFAULT 'free',
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Portfolios and Holdings
+CREATE TABLE portfolios (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  currency    TEXT DEFAULT 'USD',
+  is_paper    BOOLEAN DEFAULT FALSE,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE holdings (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  portfolio_id  UUID REFERENCES portfolios(id) ON DELETE CASCADE,
+  symbol        TEXT NOT NULL,
+  asset_type    TEXT NOT NULL,   -- stock|etf|crypto|forex
+  quantity      DECIMAL(18,8) NOT NULL,
+  avg_cost      DECIMAL(18,4) NOT NULL,
+  opened_at     TIMESTAMPTZ DEFAULT NOW(),
+  closed_at     TIMESTAMPTZ     -- null = open position
+);
+
+-- Market Snapshots (TimescaleDB hypertable)
+CREATE TABLE market_snapshots (
+  symbol  TEXT NOT NULL,
+  ts      TIMESTAMPTZ NOT NULL,
+  open    DECIMAL(18,4),
+  high    DECIMAL(18,4),
+  low     DECIMAL(18,4),
+  close   DECIMAL(18,4),
+  volume  BIGINT,
+  vwap    DECIMAL(18,4),
+  PRIMARY KEY (symbol, ts)
+);
+SELECT create_hypertable('market_snapshots', 'ts');
+
+-- AI Recommendations
+CREATE TABLE ai_recommendations (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  symbol           TEXT NOT NULL,
+  signal           TEXT NOT NULL,
+  confidence       SMALLINT NOT NULL,
+  risk_level       TEXT NOT NULL,
+  reasoning        TEXT NOT NULL,
+  summary          TEXT NOT NULL,
+  entry_low        DECIMAL(18,4),
+  entry_high       DECIMAL(18,4),
+  target_price     DECIMAL(18,4),
+  stop_loss        DECIMAL(18,4),
+  risk_reward      DECIMAL(6,2),
+  model_id         TEXT NOT NULL,
+  generated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_rec_symbol_time
+  ON ai_recommendations (symbol, generated_at DESC);</code></pre>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 6 — REALTIME
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <span class="section-num">§ 06</span>
+      <h2 class="section-title">Realtime Architecture</h2>
+    </div>
+
+    <h3>6.1 WebSocket Scaling with Redis Adapter</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph TB
+    C1["Browser Client 1"] --> NLB["Network Load Balancer (Layer 4)"]
+    C2["Browser Client 2"] --> NLB
+    C3["Browser Client 3"] --> NLB
+    NLB --> POD1["WS Pod 1 (Socket.IO)"]
+    NLB --> POD2["WS Pod 2 (Socket.IO)"]
+    NLB --> POD3["WS Pod 3 (Socket.IO)"]
+    POD1 --> RADAPTER["@socket.io/redis-adapter"]
+    POD2 --> RADAPTER
+    POD3 --> RADAPTER
+    MW["Market Data Worker"] --> RADAPTER
+    RADAPTER --> REDIS[("Redis Cluster Pub/Sub")]
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Layer-4 NLB</strong> (not ALB) for WebSocket — avoids HTTP header overhead, supports long-lived connections</li>
+      <li><strong>Redis adapter</strong> — any pod can publish and all subscribed clients on any pod receive it. No sticky sessions required.</li>
+      <li><strong>Rooms per symbol:</strong> <code>room:quote:TSLA</code> — clients subscribe only to symbols in their watchlist</li>
+      <li><strong>Reconnection:</strong> <code>reconnecting-websocket</code> with exponential backoff</li>
+    </ul>
+
+    <h3>6.2 Market Hours Rate Limiting</h3>
+    <div class="plain-block">Pre-market  (4:00am – 9:30am ET):   Poll every 5 minutes
+Market hours (9:30am – 4:00pm ET):   Poll every 60s (REST) + WebSocket for active symbols
+After-hours  (4:00pm – 8:00pm ET):   Poll every 5 minutes
+Overnight:                            No polling; serve previous close data
+Crypto:                               24/7, every 60 seconds</div>
+
+    <h3>6.3 AI Streaming via SSE</h3>
+    <pre><code class="language-typescript">// Next.js API Route — streaming AI response
+export async function GET(req: Request) {
+  const stream = new ReadableStream({
+    async start(controller) {
+      const aiStream = await anthropic.messages.stream({
+        model: 'claude-sonnet-4-6',
+        messages: buildMessages(context),
+        max_tokens: 2048,
+      });
+      for await (const chunk of aiStream) {
+        controller.enqueue(encodeChunk(chunk));
+      }
+      controller.close();
+    }
+  });
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/event-stream' }
+  });
+}</code></pre>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 7 — SECURITY
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <span class="section-num">§ 07</span>
+      <h2 class="section-title">Security &amp; Compliance</h2>
+    </div>
+
+    <h3>7.1 Authentication &amp; Authorization</h3>
+    <ul>
+      <li><strong>Auth:</strong> Better Auth with Google/GitHub OAuth + magic link email</li>
+      <li><strong>Sessions:</strong> <code>httpOnly + Secure + SameSite=Lax</code> cookies; no localStorage token storage</li>
+      <li><strong>JWT:</strong> Short-lived access tokens (15min) + refresh tokens (7 days) stored server-side in Redis</li>
+      <li><strong>RBAC:</strong> Roles: <code>user</code>, <code>pro</code>, <code>admin</code> — enforced in NestJS Guards</li>
+      <li><strong>API Keys:</strong> Stored as SHA-256 hashes, prefixed with <code>tradr_</code></li>
+    </ul>
+
+    <h3>7.2 Rate Limiting by Tier</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tier</th><th>AI Endpoints</th><th>Data Endpoints</th></tr></thead>
+        <tbody>
+          <tr><td>Free</td><td>100 req/hour</td><td>1,000 req/hour</td></tr>
+          <tr><td>Pro</td><td>1,000 req/hour</td><td>10,000 req/hour</td></tr>
+          <tr><td>Premium</td><td>10,000 req/hour</td><td>Unlimited</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>7.3 SOC2 Readiness Checklist</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Control</th><th>Implementation</th></tr></thead>
+        <tbody>
+          <tr><td>Encryption at rest</td><td>RDS encryption + S3 SSE-S3</td></tr>
+          <tr><td>Encryption in transit</td><td>TLS 1.3 everywhere; HSTS</td></tr>
+          <tr><td>Access logging</td><td>CloudTrail + Application audit log</td></tr>
+          <tr><td>Change management</td><td>PR-required merges, branch protection</td></tr>
+          <tr><td>Incident response</td><td>PagerDuty integration, runbooks in Notion</td></tr>
+          <tr><td>Vulnerability scanning</td><td>Dependabot + Snyk in CI</td></tr>
+          <tr><td>Penetration testing</td><td>Annual third-party pentest (Phase 2)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warning">
+      <span class="callout-icon">⚠</span>
+      <div class="callout-body"><strong>Financial Compliance</strong> Every AI-generated recommendation must include: <em>"This is not financial advice. Past performance does not guarantee future results."</em> Platform must be positioned as a "research tool" — not an "investment advisor" — to avoid RIA registration requirements.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 8 — DEVOPS
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <span class="section-num">§ 08</span>
+      <h2 class="section-title">DevOps &amp; Deployment</h2>
+    </div>
+
+    <h3>8.1 Infrastructure Pipeline</h3>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph TB
+    LOCAL["Local Dev (docker-compose)"] --> PR["PR Checks (lint + test + build)"]
+    PR --> MERGE["Merge to main → Staging deploy"]
+    MERGE --> STG_EKS["EKS Staging (1 node/service)"]
+    STG_EKS --> STG_RDS["RDS PostgreSQL db.t3.medium"]
+    TAG["Git tag v* → Production"] --> PROD_EKS["EKS Production (HPA enabled)"]
+    PROD_EKS --> PROD_RDS["Aurora PostgreSQL Multi-AZ"]
+    PROD_EKS --> PROD_REDIS["ElastiCache r7g.large cluster"]
+    PROD_EKS --> PROD_MSK["Amazon MSK (3-broker Kafka)"]
+    VERCEL["Vercel Edge Network"] -. routes API .-> PROD_EKS
+      </div>
+    </div>
+
+    <h3>8.2 Observability Stack</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Layer</th><th>Tool</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>Metrics</td><td><strong>Prometheus + Grafana</strong></td><td>Request rates, latency P99, queue depths</td></tr>
+          <tr><td>Logs</td><td><strong>Loki + Grafana</strong></td><td>Structured JSON logs, correlation IDs</td></tr>
+          <tr><td>Traces</td><td><strong>OpenTelemetry → Tempo</strong></td><td>Distributed tracing, AI call latency</td></tr>
+          <tr><td>Errors</td><td><strong>Sentry</strong></td><td>Frontend + backend error tracking</td></tr>
+          <tr><td>Uptime</td><td><strong>Better Uptime</strong></td><td>External endpoint monitoring</td></tr>
+          <tr><td>Alerts</td><td><strong>PagerDuty</strong></td><td>On-call routing</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>8.3 Kubernetes HPA Config</h3>
+    <pre><code class="language-yaml">apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: tradr-api
+spec:
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Pods
+      pods:
+        metric:
+          name: websocket_connections
+        target:
+          type: AverageValue
+          averageValue: "500"</code></pre>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 9 — SCALABILITY
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <span class="section-num">§ 09</span>
+      <h2 class="section-title">Scalability Planning</h2>
+    </div>
+
+    <h3>9.1 Scale Milestones</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metric</th><th>1K Users</th><th>100K Users</th><th>1M Users</th></tr></thead>
+        <tbody>
+          <tr><td>Concurrent WebSocket</td><td>~200</td><td>~20,000</td><td>~200,000</td></tr>
+          <tr><td>API requests/sec</td><td>~50</td><td>~5,000</td><td>~50,000</td></tr>
+          <tr><td>AI calls/day</td><td>~5,000</td><td>~500,000</td><td>~5,000,000</td></tr>
+          <tr><td>DB reads/sec</td><td>~500</td><td>~50,000</td><td>~500,000</td></tr>
+          <tr><td>DB writes/sec</td><td>~50</td><td>~5,000</td><td>~50,000</td></tr>
+          <tr><td>Infrastructure cost</td><td><strong>~$640/mo</strong></td><td><strong>~$14,400/mo</strong></td><td><strong>~$80,000/mo</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>9.2 AI Cost Optimization</h3>
+    <ul>
+      <li><strong>Prompt caching:</strong> Use Anthropic's prompt caching for system prompts — saves ~90% on repeated tokens</li>
+      <li><strong>Tiered analysis:</strong> Free users get Haiku; Pro users get Sonnet; Premium get Opus nightly reports</li>
+      <li><strong>Batching:</strong> Nightly batch analysis using Anthropic Batch API — 50% cost reduction</li>
+      <li><strong>Cache aggressively:</strong> Same-symbol recommendation valid 5 min; served from Redis to all watching users</li>
+      <li><strong>Context pruning:</strong> Strip news older than 7 days; cap reasoning tokens with <code>max_tokens</code></li>
+    </ul>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 10 — ROADMAP
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <span class="section-num">§ 10</span>
+      <h2 class="section-title">MVP Roadmap</h2>
+    </div>
+
+    <div class="phases">
+      <div class="phase-card p1">
+        <div class="phase-label">Phase 1 — MVP</div>
+        <h4>Weeks 1–12</h4>
+        <div class="duration">Team of 3 engineers</div>
+        <ul>
+          <li>Wk 1–2: Monorepo, auth, DB, CI/CD</li>
+          <li>Wk 3–4: TradingView integration</li>
+          <li>Wk 5–6: Market data + quote streaming</li>
+          <li>Wk 7–8: AI recommendation engine v1</li>
+          <li>Wk 9–10: AI chat assistant + streaming</li>
+          <li>Wk 11: Watchlists, alerts, portfolio</li>
+          <li>Wk 12: Polish + beta launch</li>
+        </ul>
+      </div>
+      <div class="phase-card p2">
+        <div class="phase-label">Phase 2 — Growth</div>
+        <h4>Months 4–9</h4>
+        <div class="duration">Team of 6 engineers</div>
+        <ul>
+          <li>Stripe subscription integration</li>
+          <li>Multi-agent AI analysis</li>
+          <li>Advanced portfolio analytics</li>
+          <li>Paper trading (Alpaca)</li>
+          <li>News feed + AI summaries</li>
+          <li>Screener / stock scanner</li>
+          <li>Mobile-optimized web</li>
+        </ul>
+      </div>
+      <div class="phase-card p3">
+        <div class="phase-label">Phase 3 — Enterprise</div>
+        <h4>Months 10–18</h4>
+        <div class="duration">Team of 12 engineers</div>
+        <ul>
+          <li>React Native mobile apps</li>
+          <li>Multi-user team accounts / RIA</li>
+          <li>Custom AI fine-tuning</li>
+          <li>Options flow integration</li>
+          <li>Backtesting engine</li>
+          <li>API access tier for quants</li>
+          <li>White-label offering</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>MVP Feature Checklist</h3>
+    <ul class="checklist">
+      <li>TradingView advanced chart widget</li>
+      <li>AI recommendation per symbol (Claude Sonnet)</li>
+      <li>AI chat assistant with streaming</li>
+      <li>Basic watchlist (up to 3 free, unlimited Pro)</li>
+      <li>Portfolio tracking (manual entry)</li>
+      <li>Real-time quotes (top 50 symbols)</li>
+      <li>Email alerts on price levels</li>
+      <li class="pending">Payment / subscription (Phase 2)</li>
+      <li class="pending">Paper trading (Phase 2)</li>
+      <li class="pending">Mobile apps (Phase 3)</li>
+    </ul>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 11 — MONOREPO
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s11">
+    <div class="section-header">
+      <span class="section-num">§ 11</span>
+      <h2 class="section-title">Monorepo Structure</h2>
+    </div>
+    <div class="plain-block">tradr/
+├── apps/
+│   ├── web/                          # Next.js 15 frontend
+│   │   ├── app/
+│   │   │   ├── (auth)/login, signup
+│   │   │   ├── (dashboard)/
+│   │   │   │   ├── chart/[symbol]/page.tsx
+│   │   │   │   ├── portfolio/page.tsx
+│   │   │   │   ├── watchlist/page.tsx
+│   │   │   │   └── assistant/page.tsx
+│   │   │   └── api/
+│   │   │       ├── auth/[...better-auth]/route.ts
+│   │   │       ├── analysis/[symbol]/route.ts   # SSE streaming
+│   │   │       └── chat/route.ts                # SSE streaming
+│   │   ├── components/
+│   │   │   ├── charts/TradingViewWidget.tsx
+│   │   │   ├── ai/RecommendationPanel.tsx
+│   │   │   ├── ai/ChatInterface.tsx
+│   │   │   └── market/QuoteTicker.tsx
+│   │   ├── stores/market.store.ts, ai.store.ts
+│   │   └── hooks/useWebSocket.ts, useAIStream.ts
+│   │
+│   ├── api/                          # NestJS core API
+│   │   └── src/modules/
+│   │       ├── auth/, users/, market/
+│   │       ├── portfolio/, watchlist/
+│   │       ├── ai/, alerts/, websocket/
+│   │       └── jobs/                 # BullMQ workers
+│   │
+│   └── ai-service/                   # Python FastAPI
+│       └── app/
+│           ├── routers/recommendations.py, chat.py
+│           └── services/prompt_builder.py, rag.py
+│
+├── packages/
+│   ├── db/                           # Prisma schema + migrations
+│   ├── types/                        # Shared TypeScript types
+│   ├── ui/                           # shadcn base components
+│   ├── config/                       # ESLint, TS, Tailwind configs
+│   └── market-utils/                 # RSI, MACD, formatters
+│
+├── infra/
+│   ├── terraform/modules/eks, rds, redis/
+│   └── k8s/charts/tradr/
+│
+├── turbo.json
+├── pnpm-workspace.yaml
+└── package.json</div>
+
+    <h3>Turborepo Pipeline</h3>
+    <pre><code class="language-json">{
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "dist/**"]
+    },
+    "test": { "dependsOn": ["^build"], "cache": false },
+    "lint": {},
+    "typecheck": { "dependsOn": ["^build"] },
+    "dev": { "cache": false, "persistent": true }
+  }
+}</code></pre>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 12 — API DESIGN
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s12">
+    <div class="section-header">
+      <span class="section-num">§ 12</span>
+      <h2 class="section-title">API Design</h2>
+    </div>
+
+    <h3>12.1 REST Endpoint Map</h3>
+    <div class="plain-block">Authentication
+  POST   /api/v1/auth/signup
+  POST   /api/v1/auth/signin
+  GET    /api/v1/auth/session
+
+Market Data
+  GET    /api/v1/market/quote/:symbol
+  GET    /api/v1/market/candles/:symbol?timeframe=1D&from=&to=
+  GET    /api/v1/market/search?q=TSLA
+  GET    /api/v1/market/movers?type=gainers&limit=10
+  GET    /api/v1/market/news/:symbol?limit=20
+  GET    /api/v1/market/indicators/:symbol?indicators=RSI,MACD
+
+AI Analysis
+  GET    /api/v1/analysis/:symbol              → SSE stream
+  GET    /api/v1/analysis/:symbol/latest       → cached recommendation
+  GET    /api/v1/analysis/batch?symbols=TSLA,NVDA
+
+Chat
+  GET    /api/v1/chat/sessions
+  POST   /api/v1/chat/sessions
+  POST   /api/v1/chat/sessions/:id/messages    → SSE stream
+  DELETE /api/v1/chat/sessions/:id
+
+Portfolio
+  GET    /api/v1/portfolio
+  POST   /api/v1/portfolio
+  GET    /api/v1/portfolio/:id/holdings
+  POST   /api/v1/portfolio/:id/holdings
+  GET    /api/v1/portfolio/:id/performance
+  POST   /api/v1/portfolio/:id/transactions
+
+Watchlist
+  GET    /api/v1/watchlist
+  POST   /api/v1/watchlist
+  POST   /api/v1/watchlist/:id/items
+  DELETE /api/v1/watchlist/:id/items/:symbol
+  PATCH  /api/v1/watchlist/:id/items/reorder
+
+Alerts
+  GET    /api/v1/alerts
+  POST   /api/v1/alerts
+  PUT    /api/v1/alerts/:id
+  DELETE /api/v1/alerts/:id</div>
+
+    <h3>12.2 WebSocket Connection Flow</h3>
+    <div class="plain-block">1. Client connects: wss://api.tradr.com/ws?token=&lt;session_token&gt;
+2. Server validates session → assigns to user room
+3. Client sends: { event: "subscribe:quotes", data: { symbols: ["TSLA","NVDA"] } }
+4. Server adds client to room:quote:TSLA, room:quote:NVDA
+5. Market worker publishes to Redis → all pods forward to subscribed clients
+6. Client receives: { event: "quote:update", data: { symbol: "TSLA", price: 248.50, ... } }</div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 13 — UI/UX
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s13">
+    <div class="section-header">
+      <span class="section-num">§ 13</span>
+      <h2 class="section-title">UI/UX Design Direction</h2>
+    </div>
+
+    <h3>13.1 Design System — Color Palette</h3>
+    <div class="swatches">
+      <div class="swatch"><div class="swatch-dot" style="background:#0A0A0B;border:1px solid #333"></div>#0A0A0B Background</div>
+      <div class="swatch"><div class="swatch-dot" style="background:#111113"></div>#111113 Surface</div>
+      <div class="swatch"><div class="swatch-dot" style="background:#1E1E24"></div>#1E1E24 Border</div>
+      <div class="swatch"><div class="swatch-dot" style="background:#3B82F6"></div>#3B82F6 Blue / Interactive</div>
+      <div class="swatch"><div class="swatch-dot" style="background:#22C55E"></div>#22C55E Bull Green</div>
+      <div class="swatch"><div class="swatch-dot" style="background:#EF4444"></div>#EF4444 Bear Red</div>
+      <div class="swatch"><div class="swatch-dot" style="background:#F59E0B"></div>#F59E0B Hold Amber</div>
+      <div class="swatch"><div class="swatch-dot" style="background:#A855F7"></div>#A855F7 AI Purple</div>
+      <div class="swatch"><div class="swatch-dot" style="background:#F1F1F3"></div>#F1F1F3 Text Primary</div>
+      <div class="swatch"><div class="swatch-dot" style="background:#8888A0"></div>#8888A0 Text Muted</div>
+    </div>
+
+    <h3>13.2 Signal Badges</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 24px">
+      <span class="sig sig-buy">STRONG BUY</span>
+      <span class="sig sig-buy">BUY</span>
+      <span class="sig sig-hold">HOLD</span>
+      <span class="sig sig-sell">SELL</span>
+      <span class="sig sig-sell">STRONG SELL</span>
+      <span class="sig sig-ai">AI ANALYSIS</span>
+      <span class="sig sig-info">STREAMING</span>
+    </div>
+
+    <h3>13.3 Dashboard Layout Wireframe</h3>
+    <div class="wireframe">┌─────────────────────────────────────────────────────────────────────┐
+│  TRADR    [Search symbols...]      Market: ▲ SPY  ▼ VIX   AI Chat  │
+├──────────┬──────────────────────────────────────┬────────────────────┤
+│          │                                      │                    │
+│Watchlist │     TradingView Advanced Chart       │   AI Analysis      │
+│          │                                      │   Panel            │
+│ TSLA ▲2% │   [Full interactive chart with       │                    │
+│ NVDA ▲5% │    indicators, drawing tools,        │  Signal: BUY       │
+│ AAPL ▼1% │    timeframe switcher, RSI, MACD]   │  Conf: 78%         │
+│ MSFT ─0% │                                      │  Risk: MEDIUM      │
+│ AMZN ▲3% │                                      │                    │
+│ GOOGL▲1% │                                      │  [Reasoning]       │
+│          │                                      │  Chain of thought  │
+│ [+ Add]  │                                      │  step by step...   │
+│          ├─────────────────────┬────────────────│                    │
+│          │ Technical Summary   │  Recent News   │  Entry: $248–$252  │
+│          │ RSI: 58 (neutral)   │ • TSLA Q4...  │  Target: $285      │
+│          │ MACD: bullish cross │ • Analyst upg  │  Stop:   $238      │
+│          │ BB: mid band        │ • Musk says... │  R:R  = 2.9x       │
+│          │                     │                │                    │
+└──────────┴─────────────────────┴────────────────┴────────────────────┘</div>
+
+    <h3>13.4 AI Chat Interface</h3>
+    <div class="wireframe">┌──────────────────────────────────────────────┐
+│  AI Research Assistant              [+ New]  │
+├──────────────────────────────────────────────┤
+│  ┌────────────────────────────────────────┐  │
+│  │ You: Analyze TSLA momentum             │  │
+│  └────────────────────────────────────────┘  │
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │ AI: TSLA is showing strong bullish     │  │
+│  │ momentum driven by...                  │  │
+│  │                                        │  │
+│  │ Technical Factors:                     │  │
+│  │ • RSI at 62 — room to run              │  │
+│  │ • MACD crossed bullish 3 days ago      │  │
+│  │ • Volume 40% above 20-day average      │  │
+│  │                                        │  │
+│  │ Risk: Watch $242 support closely       │  │
+│  │ ⚠ Not financial advice.               │  │
+│  └────────────────────────────────────────┘  │
+│                                              │
+│  [Analyze] [Bullish setups] [Market news]    │
+│  ┌──────────────────────────────────────┐    │
+│  │ Ask anything about markets...   [↵]  │    │
+│  └──────────────────────────────────────┘    │
+└──────────────────────────────────────────────┘</div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 14 — TRADINGVIEW
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s14">
+    <div class="section-header">
+      <span class="section-num">§ 14</span>
+      <h2 class="section-title">TradingView Integration</h2>
+    </div>
+
+    <h3>14.1 Embedding Strategy</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Approach</th><th>Use Case</th><th>License</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Widget (iframe embed)</strong></td><td>Advanced Chart, Mini Chart, Ticker Tape</td><td>Free</td><td>$0</td></tr>
+          <tr><td><strong>Charting Library</strong></td><td>Custom data feeds, full styling control</td><td>Commercial</td><td>~$5,000/yr+</td></tr>
+          <tr><td><strong>Trading Platform</strong></td><td>Full brokerage UI integration</td><td>Enterprise</td><td>Custom</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout success">
+      <span class="callout-icon">✓</span>
+      <div class="callout-body"><strong>MVP Recommendation:</strong> Free Advanced Chart Widget (iframe). Includes 100+ indicators, drawing tools, multi-timeframe, real-time TradingView data. Migrate to Charting Library in Phase 2 for custom Polygon.io data feeds.</div>
+    </div>
+
+    <h3>14.2 React Component Integration</h3>
+    <pre><code class="language-typescript">// components/charts/TradingViewWidget.tsx
+'use client';
+import { useEffect, useRef } from 'react';
+
+export function TradingViewWidget({ symbol, theme = 'dark', interval = 'D', height = 600 }) {
+  const containerRef = useRef&lt;HTMLDivElement&gt;(null);
+
+  useEffect(() =&gt; {
+    if (!containerRef.current) return;
+    containerRef.current.innerHTML = '';
+
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol,
+      interval,
+      timezone: 'America/New_York',
+      theme,
+      style: '1',
+      locale: 'en',
+      enable_publishing: false,
+      allow_symbol_change: true,
+      withdateranges: true,
+      hide_side_toolbar: false,
+      studies: ['RSI@tv-basicstudies', 'MACD@tv-basicstudies'],
+    });
+    containerRef.current.appendChild(script);
+  }, [symbol, theme, interval]);
+
+  return (
+    &lt;div className="tradingview-widget-container" ref={containerRef} style={{ height }}&gt;
+      &lt;div className="tradingview-widget-container__widget h-full" /&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────
+       SECTION 15 — RISKS
+  ────────────────────────────────────────────────── -->
+  <div class="section" id="s15">
+    <div class="section-header">
+      <span class="section-num">§ 15</span>
+      <h2 class="section-title">Risks &amp; Challenges</h2>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Risk</th><th>Severity</th><th>Likelihood</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr><td>AI hallucinations in financial recommendations</td><td><span class="sig sig-sell">Critical</span></td><td>High</td><td>Zod schema validation; disclaimer on every output; ground in real data only</td></tr>
+          <tr><td>Market data licensing violations</td><td><span class="sig sig-sell">Critical</span></td><td>Medium</td><td>Licensed providers only; no raw data redistribution; legal review pre-launch</td></tr>
+          <tr><td>SEC/FINRA "investment advisor" classification</td><td><span class="sig sig-sell">Critical</span></td><td>Low–Med</td><td>Clear "research tool" positioning; disclaimers; avoid personalized advice</td></tr>
+          <tr><td>TradingView widget ToS changes</td><td><span class="sig sig-hold">High</span></td><td>Low</td><td>Abstract widget component; migration path to Charting Library ready</td></tr>
+          <tr><td>API provider outages (Polygon)</td><td><span class="sig sig-hold">High</span></td><td>Medium</td><td>Secondary provider (Finnhub/TwelveData) as fallback; graceful degradation</td></tr>
+          <tr><td>AI API cost overruns</td><td><span class="sig sig-hold">High</span></td><td>Medium</td><td>Per-user rate limits; budget alerts; aggressive caching; prompt caching</td></tr>
+          <tr><td>AI reasoning errors during volatile markets</td><td><span class="sig sig-hold">High</span></td><td>High</td><td>Timestamp all recommendations; show "last updated"; never auto-execute trades</td></tr>
+          <tr><td>WebSocket scaling under load</td><td><span class="sig sig-info">Medium</span></td><td>Medium</td><td>Redis adapter tested to 100K connections; load test before launch</td></tr>
+          <tr><td>User data breach</td><td><span class="sig sig-sell">Critical</span></td><td>Low</td><td>Encryption everywhere; no financial credentials stored; SOC2 roadmap</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>AI Hallucination Mitigation Protocol</h3>
+    <div class="plain-block">1. Ground all analysis in real data — never let the LLM invent prices or indicators
+2. Zod schema validation on every AI response — reject malformed outputs
+3. Confidence score floor — do not display recommendations below 40% confidence
+4. Mandatory disclaimer on every AI output block
+5. Model disagreement detection — flag uncertainty when Haiku and Sonnet diverge
+6. Human-readable reasoning required — users can see WHY and judge themselves
+7. Audit trail — log all prompts and responses for review</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       APPENDICES
+  ══════════════════════════════════════════════════ -->
+
+  <!-- APPENDIX A — STACK -->
+  <div class="section" id="appendix-stack">
+    <div class="section-header">
+      <span class="section-num">App A</span>
+      <h2 class="section-title">Recommended Tech Stack</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Layer</th><th>Technology</th><th>Rationale</th></tr></thead>
+        <tbody>
+          <tr><td>Frontend</td><td><strong>Next.js 15 (App Router)</strong></td><td>RSC + streaming + API Routes</td></tr>
+          <tr><td>Styling</td><td><strong>Tailwind CSS v4</strong></td><td>Zero-runtime, dark mode</td></tr>
+          <tr><td>Components</td><td><strong>shadcn/ui + Radix</strong></td><td>Accessible, owned code</td></tr>
+          <tr><td>Client State</td><td><strong>Zustand v5</strong></td><td>Simple, performant</td></tr>
+          <tr><td>Server State</td><td><strong>TanStack Query v5</strong></td><td>Best-in-class caching</td></tr>
+          <tr><td>Auth</td><td><strong>Better Auth</strong></td><td>Next.js native, flexible</td></tr>
+          <tr><td>Backend</td><td><strong>NestJS + TypeScript</strong></td><td>Modular, scalable, typed</td></tr>
+          <tr><td>ORM</td><td><strong>Prisma</strong></td><td>Type-safe, great DX</td></tr>
+          <tr><td>Database</td><td><strong>PostgreSQL 16 + TimescaleDB</strong></td><td>Time-series native</td></tr>
+          <tr><td>Cache</td><td><strong>Redis 7 (ElastiCache)</strong></td><td>Pub/sub + caching</td></tr>
+          <tr><td>Queue</td><td><strong>BullMQ</strong></td><td>Redis-native, reliable</td></tr>
+          <tr><td>Stream</td><td><strong>Kafka (MSK)</strong></td><td>Market data fan-out at scale</td></tr>
+          <tr><td>AI Primary</td><td><strong>Anthropic Claude Sonnet 4.6</strong></td><td>Best reasoning, streaming</td></tr>
+          <tr><td>AI Fast</td><td><strong>Claude Haiku 4.5</strong></td><td>Sub-second, cheap</td></tr>
+          <tr><td>AI Structured</td><td><strong>GPT-4o</strong></td><td>JSON schema adherence</td></tr>
+          <tr><td>Embeddings</td><td><strong>text-embedding-3-large</strong></td><td>Best retrieval quality</td></tr>
+          <tr><td>Vector DB</td><td><strong>Pinecone</strong></td><td>Managed, fast retrieval</td></tr>
+          <tr><td>Charts</td><td><strong>TradingView Widget → Library</strong></td><td>Phase 1 free, Phase 2 licensed</td></tr>
+          <tr><td>Market Data</td><td><strong>Polygon.io + Finnhub</strong></td><td>Complementary coverage</td></tr>
+          <tr><td>Infrastructure</td><td><strong>AWS EKS + Vercel</strong></td><td>Proven, scalable</td></tr>
+          <tr><td>IaC</td><td><strong>Terraform + Helm</strong></td><td>Reproducible infra</td></tr>
+          <tr><td>CI/CD</td><td><strong>GitHub Actions</strong></td><td>Integrated, free for public</td></tr>
+          <tr><td>Observability</td><td><strong>Prometheus + Grafana + Sentry</strong></td><td>Full stack coverage</td></tr>
+          <tr><td>Monorepo</td><td><strong>Turborepo + pnpm</strong></td><td>Fast, cache-aware</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- APPENDIX B — COSTS -->
+  <div class="section" id="appendix-costs">
+    <div class="section-header">
+      <span class="section-num">App B</span>
+      <h2 class="section-title">Estimated Monthly Infrastructure Costs</h2>
+    </div>
+
+    <h3>MVP — 1K Users</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Service</th><th>Cost/mo</th></tr></thead>
+        <tbody>
+          <tr><td>AWS EKS (3× t3.large nodes)</td><td>$180</td></tr>
+          <tr><td>RDS PostgreSQL db.t3.large</td><td>$90</td></tr>
+          <tr><td>ElastiCache r6g.large</td><td>$120</td></tr>
+          <tr><td>Vercel Pro</td><td>$20</td></tr>
+          <tr><td>Polygon.io Starter</td><td>$29</td></tr>
+          <tr><td>Anthropic API (~$0.50/user/day)</td><td>$50</td></tr>
+          <tr><td>OpenAI API (fallback)</td><td>$20</td></tr>
+          <tr><td>Pinecone Starter</td><td>$70</td></tr>
+          <tr><td>Monitoring + misc</td><td>$60</td></tr>
+          <tr><td><strong>Total</strong></td><td><strong>~$640/mo</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Growth — 100K Users</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Service</th><th>Cost/mo</th></tr></thead>
+        <tbody>
+          <tr><td>AWS EKS (12× m7g.xlarge nodes)</td><td>$1,800</td></tr>
+          <tr><td>Aurora PostgreSQL Multi-AZ</td><td>$800</td></tr>
+          <tr><td>ElastiCache r7g.large cluster</td><td>$600</td></tr>
+          <tr><td>Amazon MSK (3-broker)</td><td>$400</td></tr>
+          <tr><td>Vercel Enterprise</td><td>$400</td></tr>
+          <tr><td>Polygon.io Professional</td><td>$199</td></tr>
+          <tr><td>Anthropic API (~$0.30/user/day avg)</td><td>$9,000</td></tr>
+          <tr><td>Pinecone Standard</td><td>$700</td></tr>
+          <tr><td>Cloudflare Pro + R2</td><td>$200</td></tr>
+          <tr><td>Observability stack</td><td>$300</td></tr>
+          <tr><td><strong>Total</strong></td><td><strong>~$14,400/mo</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout success">
+      <span class="callout-icon">$</span>
+      <div class="callout-body"><strong>Unit Economics at 100K Users</strong> With $29/mo average subscription = $2.9M ARR. Infrastructure COGS at ~$14,400/mo = ~6% COGS ratio. Healthy SaaS margin.</div>
+    </div>
+  </div>
+
+  <!-- APPENDIX C — AI PROMPTS -->
+  <div class="section" id="appendix-prompts">
+    <div class="section-header">
+      <span class="section-num">App C</span>
+      <h2 class="section-title">AI Prompt Templates</h2>
+    </div>
+
+    <h3>Symbol Deep Analysis</h3>
+    <pre><code class="language-text">You are a senior quantitative analyst with 20 years of experience at a top hedge fund.
+You analyze securities using technical analysis, market sentiment, and macro context.
+
+You MUST respond in valid JSON matching the schema provided.
+You MUST explain your reasoning step by step before giving conclusions.
+You MUST include uncertainty quantification — never present analysis as certain.
+You MUST add a disclaimer that this is not financial advice.
+
+Analyze {{symbol}} given the following data:
+
+PRICE DATA (90 days): {{ohlcv_data}}
+
+TECHNICAL INDICATORS:
+- RSI(14): {{rsi}}
+- MACD: Signal {{macd_signal}}, Histogram {{macd_hist}}
+- 20/50/200-day MA: {{ma20}} / {{ma50}} / {{ma200}}
+- Bollinger Bands: Upper {{bb_upper}}, Lower {{bb_lower}}
+- ATR(14): {{atr}} ({{atr_pct}}% of price)
+- Volume vs 20d avg: {{volume_ratio}}x
+
+RECENT NEWS (past 7 days): {{news_context}}
+
+SECTOR CONTEXT: {{sector_etf}} is {{sector_change}} this week.
+
+Reasoning framework:
+1. Trend Analysis — price vs 20/50/200 MA
+2. Momentum — RSI, MACD signal and divergences
+3. Volume — confirming price action?
+4. Volatility — ATR context, BB squeeze/expansion
+5. News Sentiment — bullish/bearish catalysts
+6. Risk/Reward — key support/resistance, stop placement
+7. Synthesis — weight all factors, assign confidence
+
+Output ONLY valid JSON matching this schema: {{schema}}</code></pre>
+
+    <h3>Chat Assistant — Market Overview</h3>
+    <pre><code class="language-text">You are an expert financial analyst and market commentator.
+Current date: {{date}}
+
+Market snapshot:
+- SPY: {{spy_price}} ({{spy_change}})
+- QQQ: {{qqq_price}} ({{qqq_change}})
+- VIX: {{vix}} — {{vix_context}}
+- DXY: {{dxy}} | 10Y Treasury: {{tnx}}%
+
+User portfolio: {{portfolio_summary}}
+User question: {{user_message}}
+
+Instructions:
+- Be concise and direct
+- Use plain English unless user demonstrates expertise
+- Format numbers clearly ($248.50, +2.3%)
+- Distinguish between analysis and speculation
+- End with: "⚠️ This is not financial advice."</code></pre>
+  </div>
+
+  <!-- APPENDIX D — INDEXES -->
+  <div class="section" id="appendix-indexes">
+    <div class="section-header">
+      <span class="section-num">App D</span>
+      <h2 class="section-title">Database Indexes</h2>
+    </div>
+    <pre><code class="language-sql">-- Time-series (hot read path)
+CREATE INDEX CONCURRENTLY idx_snapshots_symbol_ts
+  ON market_snapshots (symbol, ts DESC);
+
+-- AI recommendations lookup
+CREATE INDEX CONCURRENTLY idx_rec_symbol_recent
+  ON ai_recommendations (symbol, generated_at DESC)
+  WHERE generated_at > NOW() - INTERVAL '24 hours';
+
+-- Portfolio queries
+CREATE INDEX CONCURRENTLY idx_holdings_portfolio
+  ON holdings (portfolio_id, closed_at NULLS FIRST);
+
+CREATE INDEX CONCURRENTLY idx_transactions_portfolio_date
+  ON transactions (portfolio_id, executed_at DESC);
+
+-- Chat history
+CREATE INDEX CONCURRENTLY idx_chat_messages_session
+  ON chat_messages (session_id, created_at DESC);
+
+-- Alert evaluation (hot path — runs every 30s)
+CREATE INDEX CONCURRENTLY idx_alerts_active_symbol
+  ON alerts (symbol, is_active)
+  WHERE is_active = TRUE;
+
+-- Watchlist batch quote fetch
+CREATE INDEX CONCURRENTLY idx_watchlist_items_list
+  ON watchlist_items (watchlist_id, position);
+
+-- User lookups
+CREATE UNIQUE INDEX idx_users_email ON users (email);
+CREATE INDEX CONCURRENTLY idx_subscriptions_user
+  ON subscriptions (user_id, status);</code></pre>
+  </div>
+
+  <!-- APPENDIX E — CACHING -->
+  <div class="section" id="appendix-cache">
+    <div class="section-header">
+      <span class="section-num">App E</span>
+      <h2 class="section-title">Caching Strategy</h2>
+    </div>
+    <div class="plain-block">Cache Key Patterns (Redis):
+  quote:{symbol}               TTL: 15s    — Live price data
+  quote:batch:{hash}           TTL: 15s    — Batch quote response
+  analysis:{symbol}            TTL: 300s   — AI recommendation
+  candles:{symbol}:{tf}:{date} TTL: 3600s  — Historical candles (immutable)
+  news:{symbol}                TTL: 900s   — News articles list
+  news:summary:{symbol}        TTL: 1800s  — AI news summary
+  movers:{type}                TTL: 60s    — Market movers list
+  indicators:{symbol}          TTL: 60s    — Technical indicators
+  portfolio:pl:{id}            TTL: 60s    — Portfolio P&L calculation
+  user:session:{token}         TTL: 604800 — 7 days session
+
+Cache Invalidation:
+  - Quote cache: auto-expire (no manual invalidation)
+  - Analysis: invalidate on user refresh or after market close
+  - Portfolio P&L: invalidate on new transaction
+  - News: background refresh job every 15 minutes
+
+Cache Warming:
+  - Market open (9:30am ET): warm top 500 symbols' quotes
+  - Nightly: pre-generate AI recommendations for all Pro+ watchlists
+
+CDN Layer (Cloudflare):
+  - Static assets: 1 year
+  - Market news summaries: 15 minutes
+  - Public recommendation snapshots: 5 minutes</div>
+  </div>
+
+  <!-- APPENDIX F — WEBSOCKET SCHEMA -->
+  <div class="section" id="appendix-ws">
+    <div class="section-header">
+      <span class="section-num">App F</span>
+      <h2 class="section-title">WebSocket Event Schema</h2>
+    </div>
+    <pre><code class="language-typescript">// ── Client → Server ──────────────────────────────────────────────
+type C2S =
+  | { e: 'sub:quotes';    d: { symbols: string[] } }
+  | { e: 'unsub:quotes';  d: { symbols: string[] } }
+  | { e: 'sub:analysis';  d: { symbol: string } }
+  | { e: 'unsub:analysis';d: { symbol: string } }
+  | { e: 'chat:send';     d: { sessionId: string; content: string } }
+  | { e: 'chat:stop';     d: { sessionId: string } }
+  | { e: 'ping';          d: Record&lt;never, never&gt; }
+
+// ── Server → Client ──────────────────────────────────────────────
+type S2C =
+  | { e: 'quote:tick';    d: QuoteTick }
+  | { e: 'analysis:done'; d: AnalysisDone }
+  | { e: 'chat:chunk';    d: ChatChunk }
+  | { e: 'chat:done';     d: ChatDone }
+  | { e: 'alert:fire';    d: AlertFired }
+  | { e: 'error';         d: { code: string; message: string } }
+  | { e: 'pong';          d: { ts: number } }
+
+interface QuoteTick {
+  sym: string;   // "TSLA"
+  p:   number;   // price
+  c:   number;   // change
+  cp:  number;   // change percent
+  v:   number;   // volume
+  ts:  number;   // unix ms
+}
+
+interface ChatChunk {
+  sid:   string;   // session id
+  chunk: string;   // text delta
+  done:  boolean;
+}</code></pre>
+  </div>
+
+  <!-- APPENDIX G — CI/CD -->
+  <div class="section" id="appendix-cicd">
+    <div class="section-header">
+      <span class="section-num">App G</span>
+      <h2 class="section-title">CI/CD Pipeline</h2>
+    </div>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+graph LR
+    PR["PR Opened"] --> CHECKS{"Parallel Checks"}
+    CHECKS --> LINT["pnpm lint"]
+    CHECKS --> TYPE["pnpm typecheck"]
+    CHECKS --> TEST["pnpm test"]
+    CHECKS --> SEC["Snyk scan"]
+    CHECKS --> BUILD["pnpm build"]
+    LINT --> PASS{"All pass?"}
+    TYPE --> PASS
+    TEST --> PASS
+    SEC --> PASS
+    BUILD --> PASS
+    PASS -->|Yes| PREVIEW["Vercel Preview Deploy"]
+    PASS -->|No| FAIL["Block merge"]
+    PREVIEW --> REVIEW["Human Review"]
+    REVIEW --> MERGE["Merge to main"]
+    MERGE --> STG["Deploy staging (helm upgrade)"]
+    STG --> SMOKE["Smoke tests (Playwright)"]
+    SMOKE --> NOTIFY1["Notify Slack"]
+    TAG["Git tag v*"] --> GATE["Production gate (manual approval)"]
+    GATE --> PROD["Deploy production (helm --atomic)"]
+    PROD --> CANARY["10% traffic canary — 5 min soak"]
+    CANARY --> FULL["100% rollout"]
+    FULL --> NOTIFY2["Notify Slack + PagerDuty"]
+      </div>
+    </div>
+
+    <h3>GitHub Actions Workflow (abbreviated)</h3>
+    <pre><code class="language-yaml">on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+jobs:
+  quality:
+    steps:
+      - uses: pnpm/action-setup@v3
+      - run: pnpm lint && pnpm typecheck && pnpm test && pnpm build
+
+  security:
+    steps:
+      - uses: snyk/actions/node@master
+      - run: trivy image $IMAGE_TAG
+
+  deploy-staging:
+    needs: [quality, security]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - run: helm upgrade --install tradr-staging ./charts/tradr
+              --set image.tag=${{ github.sha }} --namespace staging
+
+  deploy-production:
+    needs: [quality, security]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment: production   # requires manual approval
+    steps:
+      - run: helm upgrade --install tradr-prod ./charts/tradr
+              --set image.tag=${{ github.sha }} --namespace production
+              --atomic --timeout 5m</code></pre>
+  </div>
+
+  <!-- APPENDIX H — MONETIZATION -->
+  <div class="section" id="appendix-monetization">
+    <div class="section-header">
+      <span class="section-num">App H</span>
+      <h2 class="section-title">Monetization Strategy</h2>
+    </div>
+
+    <div class="pricing">
+      <div class="pricing-card">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">$0<span>/mo</span></div>
+        <div class="plan-target">Curious retail investors</div>
+        <ul>
+          <li>3 watchlist items</li>
+          <li>Delayed quotes (15min)</li>
+          <li>5 AI analyses/day (Haiku)</li>
+          <li>1 portfolio</li>
+        </ul>
+      </div>
+      <div class="pricing-card featured">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">$29<span>/mo</span></div>
+        <div class="plan-target">Active traders</div>
+        <ul>
+          <li>Unlimited watchlist</li>
+          <li>Realtime quotes</li>
+          <li>50 AI analyses/day (Sonnet)</li>
+          <li>5 portfolios + email alerts</li>
+          <li>News feed</li>
+        </ul>
+      </div>
+      <div class="pricing-card">
+        <div class="plan-name">Premium</div>
+        <div class="plan-price">$99<span>/mo</span></div>
+        <div class="plan-target">Power traders</div>
+        <ul>
+          <li>Everything in Pro</li>
+          <li>Opus nightly reports</li>
+          <li>200 AI analyses/day</li>
+          <li>Paper trading (Alpaca)</li>
+          <li>SMS alerts</li>
+          <li>Multi-chart layouts</li>
+        </ul>
+      </div>
+      <div class="pricing-card">
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-price">$299<span>/mo</span></div>
+        <div class="plan-target">RIAs, small funds</div>
+        <ul>
+          <li>Everything in Premium</li>
+          <li>API access</li>
+          <li>5 team seats</li>
+          <li>Custom AI personas</li>
+          <li>Audit logs</li>
+          <li>Dedicated support</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Additional Revenue Streams</h3>
+    <ul>
+      <li><strong>Affiliate / referral:</strong> Alpaca brokerage referral — $50–$200 per funded account</li>
+      <li><strong>Data insights (Phase 3):</strong> Anonymized aggregate sentiment data sold to institutional buyers</li>
+      <li><strong>Marketplace (Phase 3):</strong> AI strategies / screeners created by power users, revenue share</li>
+    </ul>
+
+    <h3>Growth Levers</h3>
+    <ul>
+      <li><strong>Viral loop:</strong> Share AI analysis links publicly — anonymous users see the output and sign up</li>
+      <li><strong>Email retention:</strong> Weekly AI market newsletter to full email list</li>
+      <li><strong>Community:</strong> Discord for Pro+ users reduces churn significantly</li>
+    </ul>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="doc-footer">
+    <span>Tradr Architecture RFC v1.0 — 2026-05-27</span>
+    <span>All cost estimates are approximations. Nothing herein constitutes investment advice.</span>
+  </div>
+
+</main>
+
+<script>
+  // Mermaid init
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      background: '#111113',
+      mainBkg: '#18181c',
+      nodeBorder: '#3B82F6',
+      lineColor: '#8888A0',
+      textColor: '#F1F1F3',
+      fontSize: '13px',
+      primaryColor: '#18181c',
+      primaryBorderColor: '#3B82F6',
+      primaryTextColor: '#F1F1F3',
+      secondaryColor: '#2A2A32',
+      tertiaryColor: '#1E1E24',
+      edgeLabelBackground: '#111113',
+      clusterBkg: '#0d0d10',
+      clusterBorder: '#1E1E24',
+      titleColor: '#F1F1F3',
+      actorBorder: '#3B82F6',
+      actorBkg: '#18181c',
+      actorTextColor: '#F1F1F3',
+      actorLineColor: '#8888A0',
+      signalColor: '#8888A0',
+      signalTextColor: '#F1F1F3',
+      labelBoxBkgColor: '#18181c',
+      labelBoxBorderColor: '#3B82F6',
+      labelTextColor: '#F1F1F3',
+      loopTextColor: '#F1F1F3',
+      noteBorderColor: '#A855F7',
+      noteBkgColor: '#1E1E24',
+      noteTextColor: '#F1F1F3',
+    },
+    flowchart: { curve: 'basis', padding: 20 },
+    sequence: { useMaxWidth: true },
+    er: { useMaxWidth: true },
+  });
+
+  // Syntax highlighting
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('pre code').forEach(el => {
+      hljs.highlightElement(el);
+    });
+
+    // Active nav link on scroll
+    const sections = document.querySelectorAll('[id]');
+    const navLinks = document.querySelectorAll('nav a');
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          navLinks.forEach(link => {
+            link.style.color = '';
+            link.style.borderLeftColor = 'transparent';
+            link.style.background = '';
+          });
+          const active = document.querySelector(`nav a[href="#${entry.target.id}"]`);
+          if (active) {
+            active.style.color = '#F1F1F3';
+            active.style.borderLeftColor = '#3B82F6';
+            active.style.background = '#2A2A32';
+          }
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    sections.forEach(s => observer.observe(s));
+  });
+</script>
+</body>
+</html>
